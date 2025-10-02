@@ -7,3 +7,9 @@ python-dotenv               # Load environment variables from .env
 passlib[bcrypt]             # Password hashing
 python-jose[cryptography]   # JWT support (optional if you use JWT later)
 email-validator             # Validate email addresses
+pytesseract
+paddleocr
+pdfplumber
+PyMuPDF
+pdf2image
+
