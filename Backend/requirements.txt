@@ -1,0 +1,9 @@
+fastapi                     # FastAPI framework
+uvicorn[standard]           # ASGI server to run FastAPI
+sqlalchemy                  # ORM for database
+psycopg2-binary             # PostgreSQL driver
+alembic                     # Database migrations
+python-dotenv               # Load environment variables from .env
+passlib[bcrypt]             # Password hashing
+python-jose[cryptography]   # JWT support (optional if you use JWT later)
+email-validator             # Validate email addresses
