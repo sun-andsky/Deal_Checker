@@ -12,4 +12,7 @@ paddleocr
 pdfplumber
 PyMuPDF
 pdf2image
-
+spacy
+transformers
+torch
+language-tool-python
