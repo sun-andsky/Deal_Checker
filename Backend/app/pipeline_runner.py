@@ -1,7 +1,10 @@
+# app/pipeline_runner.py
 import os
+import json
 from extract_text import main as ocr_main  # Your existing OCR module
 from hybrid_classification.classify_clauses import classify_clause_hybrid
-from nlp_clause_extraction.extract_clauses import extract_clauses, save_clauses  # adjust import as needed
+from nlp_clause_extraction.extract_clauses import extract_clauses, save_clauses  # adjust imports as needed
+from app.suggest import generate_suggestions
 
 import fitz  # PyMuPDF
 from PIL import Image, ImageDraw
@@ -66,6 +69,7 @@ def highlight_image(file_path, clauses, output_file):
 # -------- Main Pipeline --------
 def main_pipeline():
     extracted_data = ocr_main()  # Your OCR module output
+
     for data in extracted_data:
         text = data['text']
         file_name = data['file_name']
@@ -74,25 +78,46 @@ def main_pipeline():
 
         # Extract clauses
         clauses = extract_clauses(text)
-        clauses_file = os.path.join(EXTRACTED_FOLDER, f"clauses_{document_id}.txt")
-        save_clauses(clauses, clauses_file)
-        print(f"Clauses saved: {clauses_file}")
+        clauses_file_txt = os.path.join(EXTRACTED_FOLDER, f"clauses_{document_id}.txt")
+        save_clauses(clauses, clauses_file_txt)
+        print(f"Clauses saved: {clauses_file_txt}")
 
-        # Print classification for reference
-        print(f"\nClassification for {file_name}:")
+        # Collect clauses with classification and suggestions
+        clauses_with_suggestions = []
+        print(f"\nClassification and Suggestions for {file_name}:\n")
         for clause in clauses:
             label = classify_clause_hybrid(clause)
+            suggestions = generate_suggestions(clause, label)
+
+            clauses_with_suggestions.append({
+                "clause": clause,
+                "label": label,
+                "suggestions": suggestions
+            })
+
+            # Print to console
             print(f"Clause: {clause}")
             print(f"Issue Type: {label}")
+            if suggestions:
+                print("Suggestions:")
+                for s in suggestions:
+                    print(f"- [{s['source']}] {s['suggestion']}")
+            else:
+                print("No suggestions available.")
             print("-"*50)
+
+        # Save clauses with suggestions as JSON
+        clauses_file_json = os.path.join(EXTRACTED_FOLDER, f"clauses_{document_id}.json")
+        with open(clauses_file_json, "w") as f:
+            json.dump(clauses_with_suggestions, f, indent=2)
+        print(f"Clauses with suggestions saved: {clauses_file_json}")
 
         # Highlight clauses in original document
         ext = os.path.splitext(file_path)[1].lower()
+        output_file = f"highlighted_{file_name}"
         if ext == ".pdf":
-            output_file = f"highlighted_{file_name}"
             highlight_pdf(file_path, clauses, output_file)
         elif ext in [".jpg", ".jpeg", ".png", ".bmp", ".tiff"]:
-            output_file = f"highlighted_{file_name}"
             highlight_image(file_path, clauses, output_file)
         else:
             print(f"Unsupported file type for highlighting: {file_name}")
