@@ -49,4 +49,4 @@ if __name__ == "__main__":
     results = classify_clauses_batch(sample_clauses)
     for clause, label in results:
         print(f"[{label.upper()}] {clause}")
-
+gi
