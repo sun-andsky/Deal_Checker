@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, Text, String, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, Text, String, Boolean, DateTime, ForeignKey, BigInteger
 from datetime import datetime
 from .database import Base
+
 
 class Document(Base):
     __tablename__ = "documents"
@@ -13,6 +14,15 @@ class Document(Base):
     size = Column(BigInteger, nullable=True)
     uploaded_by = Column(Integer, nullable=True)
     uploaded_at = Column(DateTime, default=datetime.utcnow)
+
+class Clause(Base):
+    __tablename__ = "clauses"
+
+    id = Column(Integer, primary_key=True)
+    document_id = Column(Integer, ForeignKey("documents.id"), nullable=False)
+    text = Column(Text, nullable=False)
+    error_type = Column(String, nullable=True)  # e.g., financial, grammatical, legal
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 class ClauseSuggestion(Base):
     __tablename__ = "clause_suggestions"
