@@ -1,5 +1,5 @@
 import re
-from transformers import pipeline
+from pip import pipeline
 
 # Rule-Based
 GRAMMAR_RULES = [r"\bteh\b", r"\brecieve\b", r"\bdefinately\b", r"\btheir\b\s+\bthere\b", r"\bwas\b\s+\bwere\b"]
