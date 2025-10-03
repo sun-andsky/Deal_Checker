@@ -16,5 +16,4 @@ spacy
 transformers
 torch
 language-tool-python
-python -m spacy download en_core_web_sm  #After installing spacy, you also need to download the English model separately:
 
