@@ -1,3 +1,11 @@
+from fastapi import FastAPI
+from app.database import Base, engine
+from app.routers.files import router as files_router
+
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(title="AI Deal Checker")
+app.include_router(files_router, prefix="/api")
 import os
 from extract_text import main as ocr_main
 from nlp_clause_extraction import extract_clauses, save_clauses
@@ -24,3 +32,4 @@ def main_pipeline():
 
 if __name__ == "__main__":
     main_pipeline()
+
