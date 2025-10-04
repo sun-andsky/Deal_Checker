@@ -1,25 +1,33 @@
-# app/pipeline_runner.py
 import os
 import json
-from extract_text import main as ocr_main  # Your existing OCR module
-from hybrid_classification.classify_clauses import classify_clause_hybrid
-from nlp_clause_extraction.extract_clauses import extract_clauses, save_clauses  # adjust imports as needed
-from app.suggest import generate_suggestions
-
 import fitz  # PyMuPDF
 from PIL import Image, ImageDraw
 import pytesseract
+import docx
+from rapidfuzz import fuzz  # For fuzzy matching
 
-# Folder to save extracted clauses
+from app.nlp_clause_extraction import extract_clauses, save_clauses
+from app.hybrid_classification import classify_clause_hybrid
+from app.suggest import generate_suggestions
+from app.error_detection import (
+    detect_grammatical_errors,
+    detect_financial_errors,
+    detect_legal_errors
+)
+
+# ------------------------ Folders ------------------------
 EXTRACTED_FOLDER = "extracted_text"
-os.makedirs(EXTRACTED_FOLDER, exist_ok=True)
+HIGHLIGHTED_FOLDER = "highlighted"
 
-# -------- Color Mapping --------
+os.makedirs(EXTRACTED_FOLDER, exist_ok=True)
+os.makedirs(HIGHLIGHTED_FOLDER, exist_ok=True)
+
+# ------------------------ Highlight Colors ------------------------
 COLOR_MAP_PDF = {
-    "grammatical": (1, 1, 0),  # yellow
-    "financial": (0, 1, 0),    # green
-    "legal": (0, 0, 1),        # blue
-    "unknown": (0.5, 0.5, 0.5) # gray
+    "grammatical": (1, 1, 0),
+    "financial": (0, 1, 0),
+    "legal": (0, 0, 1),
+    "unknown": (0.5, 0.5, 0.5)
 }
 
 COLOR_MAP_IMAGE = {
@@ -29,24 +37,42 @@ COLOR_MAP_IMAGE = {
     "unknown": "gray"
 }
 
-# -------- Highlight PDF --------
+# ------------------------ OCR Functions ------------------------
+def ocr_pdf(file_path):
+    text_pages = []
+    doc = fitz.open(file_path)
+    for page in doc:
+        pix = page.get_pixmap()
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        text_pages.append(pytesseract.image_to_string(img))
+    return "\n".join(text_pages)
+
+def ocr_image(file_path):
+    image = Image.open(file_path)
+    return pytesseract.image_to_string(image)
+
+def ocr_docx(file_path):
+    doc = docx.Document(file_path)
+    full_text = [p.text for p in doc.paragraphs]
+    return "\n".join(full_text)
+
+# ------------------------ Highlighting Functions ------------------------
 def highlight_pdf(file_path, clauses, output_file):
     doc = fitz.open(file_path)
     for page in doc:
         text = page.get_text()
-        page_clauses = [clause for clause in clauses if clause in text]
-
-        for clause in page_clauses:
+        for clause in clauses:
             label = classify_clause_hybrid(clause)
-            areas = page.search_for(clause)
-            for area in areas:
-                annot = page.add_highlight_annot(area)
-                annot.set_colors(stroke=COLOR_MAP_PDF.get(label, (0.5, 0.5, 0.5)))
-                annot.update()
+            # Fuzzy search for approximate matches
+            for inst in text.split("\n"):
+                if fuzz.partial_ratio(clause, inst) > 85:
+                    areas = page.search_for(inst)
+                    for area in areas:
+                        annot = page.add_highlight_annot(area)
+                        annot.set_colors(stroke=COLOR_MAP_PDF.get(label, (0.5,0.5,0.5)))
+                        annot.update()
     doc.save(output_file)
-    print(f"Highlighted PDF saved as: {output_file}")
 
-# -------- Highlight Image --------
 def highlight_image(file_path, clauses, output_file):
     image = Image.open(file_path)
     data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
@@ -54,73 +80,54 @@ def highlight_image(file_path, clauses, output_file):
 
     for clause in clauses:
         label = classify_clause_hybrid(clause)
-        clause_words = clause.split()
-        for i in range(len(data['text']) - len(clause_words) + 1):
-            if data['text'][i:i+len(clause_words)] == clause_words:
-                x0 = min(data['left'][i:i+len(clause_words)])
-                y0 = min(data['top'][i:i+len(clause_words)])
-                x1 = max([data['left'][i+j] + data['width'][i+j] for j in range(len(clause_words))])
-                y1 = max([data['top'][i+j] + data['height'][i+j] for j in range(len(clause_words))])
+        words = clause.split()
+        for i in range(len(data["text"]) - len(words) + 1):
+            # Fuzzy matching
+            text_segment = " ".join(data["text"][i:i+len(words)])
+            if fuzz.ratio(clause, text_segment) > 85:
+                x0 = min(data["left"][i:i+len(words)])
+                y0 = min(data["top"][i:i+len(words)])
+                x1 = max([data["left"][i+j] + data["width"][i+j] for j in range(len(words))])
+                y1 = max([data["top"][i+j] + data["height"][i+j] for j in range(len(words))])
                 draw.rectangle([x0, y0, x1, y1], outline=COLOR_MAP_IMAGE.get(label, "gray"), width=3)
-
     image.save(output_file)
-    print(f"Highlighted image saved as: {output_file}")
 
-# -------- Main Pipeline --------
-def main_pipeline():
-    extracted_data = ocr_main()  # Your OCR module output
+# ------------------------ Main Pipeline ------------------------
+def run_pipeline(file_path: str):
+    ext = os.path.splitext(file_path)[1].lower()
 
-    for data in extracted_data:
-        text = data['text']
-        file_name = data['file_name']
-        document_id = data['document_id']
-        file_path = data['file_path']  # Make sure OCR returns original file path
+    # 1️⃣ OCR
+    if ext == ".pdf":
+        text = ocr_pdf(file_path)
+    elif ext in [".jpg", ".jpeg", ".png", ".bmp", ".tiff"]:
+        text = ocr_image(file_path)
+    elif ext == ".docx":
+        text = ocr_docx(file_path)
+    else:
+        raise ValueError(f"Unsupported file type: {ext}")
 
-        # Extract clauses
-        clauses = extract_clauses(text)
-        clauses_file_txt = os.path.join(EXTRACTED_FOLDER, f"clauses_{document_id}.txt")
-        save_clauses(clauses, clauses_file_txt)
-        print(f"Clauses saved: {clauses_file_txt}")
+    # 2️⃣ Extract clauses
+    clauses = extract_clauses(text)
 
-        # Collect clauses with classification and suggestions
-        clauses_with_suggestions = []
-        print(f"\nClassification and Suggestions for {file_name}:\n")
-        for clause in clauses:
-            label = classify_clause_hybrid(clause)
-            suggestions = generate_suggestions(clause, label)
+    # 3️⃣ Save extracted clauses
+    clauses_file = os.path.join(EXTRACTED_FOLDER, f"{os.path.basename(file_path)}_clauses.txt")
+    save_clauses(clauses, clauses_file)
 
-            clauses_with_suggestions.append({
-                "clause": clause,
-                "label": label,
-                "suggestions": suggestions
-            })
+    # 4️⃣ Classification + Suggestions + Error Detection
+    results = []
+    for clause in clauses:
+        label = classify_clause_hybrid(clause)
+        suggestions = generate_suggestions(clause, label)
+        errors = {
+            "grammatical": detect_grammatical_errors(clause),
+            "financial": detect_financial_errors(clause),
+            "legal": detect_legal_errors(clause)
+        }
+        results.append({
+            "clause": clause,
+            "label": label,
+            "suggestions": suggestions,
+            "errors": errors
+        })
 
-            # Print to console
-            print(f"Clause: {clause}")
-            print(f"Issue Type: {label}")
-            if suggestions:
-                print("Suggestions:")
-                for s in suggestions:
-                    print(f"- [{s['source']}] {s['suggestion']}")
-            else:
-                print("No suggestions available.")
-            print("-"*50)
-
-        # Save clauses with suggestions as JSON
-        clauses_file_json = os.path.join(EXTRACTED_FOLDER, f"clauses_{document_id}.json")
-        with open(clauses_file_json, "w") as f:
-            json.dump(clauses_with_suggestions, f, indent=2)
-        print(f"Clauses with suggestions saved: {clauses_file_json}")
-
-        # Highlight clauses in original document
-        ext = os.path.splitext(file_path)[1].lower()
-        output_file = f"highlighted_{file_name}"
-        if ext == ".pdf":
-            highlight_pdf(file_path, clauses, output_file)
-        elif ext in [".jpg", ".jpeg", ".png", ".bmp", ".tiff"]:
-            highlight_image(file_path, clauses, output_file)
-        else:
-            print(f"Unsupported file type for highlighting: {file_name}")
-
-if __name__ == "__main__":
-    main_pipeline()
+    return results

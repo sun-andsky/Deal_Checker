@@ -1,0 +1,127 @@
+SMART INDIA HACKATHON 2025
+Problem Statement ID – SIH25029
+Problem Statement Title - Authenticity validator
+for Academia
+Theme - Smart Education
+PS Category- Software
+Team ID -
+Team Name - LumoraCertVerify
+LUMORA
+LUMORA
+PROPOSED SOLUTION
+ADRESSING PROBLEM
+Stops fake/forged certificates with multi-step checks.
+Student Recruiter Gives recruiters quick and reliable verification.
+Cuts delays of manual inspections.
+DigiLocker (API verification).
+Upload Document
+Ensures uniform verification across institutions.
+Token verification (already
+Receive a unique verification
+Recruiter verified via GST/CIN, domain,cross-platform
+verified)
+token as proof.
+Safeguards academic integrity.
+Doc upload & verification
+pipeline
+INNOVATION & UNIQUENESS
+Verification pipeline
+Combines 3 Step Verification for all edge cases.
+1. OCR + Database 2. Blockchain-based 3. AI/ML forgery
+Fallback paths : manual review if OCR/DB fails.
+matching. validation detection
+Token system for reusable verification.
+Supports both old and new certificates.
+Scalable for state/nationwide rollout.
+2
+@SIH Idea submission- Template 2TECHNICAL APPROACH
+LUMORA
+LUMORA
+TECHNOLOGIES
+FLOWCHART
+Frontend React.js
+VERIFICATION PIPELINE
+Backend Python (Django / FastAPI)
+OCR+DB Matching
+OCR Tesseract OCR / Google Vision API
+Student
+Blockchain Hyperledger / Ethereum smart contracts Upload
+Blockchain Verification
+Document
+(watermarks+ holograms)
+AI/ML Models CNNs+Transformers for forgery & anomaly detection
+Recruiter
+Digilocker
+Database MySQL / PostgreSQL for structured data
+AI/ML forgery detection
+verification
+Integration DigiLocker API for government-verified credentials
+Token
+verification
+Verified Suspicious Fake
+Recieve verification token
+(Can be shared as proof)
+@SIH Idea submission- Template 3FEASIBILITY AND VIABILITY
+LUMORA
+LUMORA
+FEASIBILITY CHALLENGES & RISKS MITIGATION STRATEGIES
+Technical: OCR, AI/ML, and
+OCR Errors : Low-quality scans Fallback : Manual review for
+Blockchain are proven tools for
+may cause text misreading. poor scans or OCR errors.
+secure verification
+Legacy Systems : Many Cost Control : Use private
+Operational: APIs and
+universities still use old/manual blockchain (e.g., Hyperledger)
+dashboards enable easy rollout
+records. to cut costs.
+for both digital & old records.
+Blockchain Cost : Public Security : AES-256 encryption +
+Security: Encrypted, access-
+blockchain can be slow and access control + regular audits
+controlled, and compliant with
+expensive.
+IT laws & GDPR. Adoption : Start with pilot
+Data Privacy: Student data is universities, then expand
+Scalability: Cloud + private
+sensitive and must be well- gradually.
+blockchain keeps costs low and
+protected.
+supports nationwide use
+@SIH Idea submission- Template 4IMPACT AND BENEFITS
+LUMORA
+LUMORA
+IMPACT BENEFITS
+Institutions (Colleges/Universities) → Protect Trust & Transparency → Builds confidence
+academic reputation, reduce fake certificate in educational and hiring ecosystem.
+misuse.
+Time & Cost Savings → Eliminates delays of
+Recruiters & Employers → Faster and more
+manual checks and reduces administrative
+reliable candidate verification.
+costs.
+Students → Genuine achievements recognized
+fairly, no competition with fake degree Fraud Prevention → Detects and blocks
+holders. forged/tampered certificates early.
+Government & Agencies → Easier fraud
+Fairness & Integrity → Creates equal
+tracking, supports Digital India & education
+opportunities for deserving candidates.
+reforms.
+@SIH Idea submission- Template
+5RESEARCH AND REFERENCES
+LUMORA
+LUMORA
+CASE STUDIES
+Large-Scale Fraud in Uttar Pradesh: In July 2025, the Supreme Court flagged large-scale fake certificate fraud in Uttar Pradesh, Source : TOI
+with reports indicating that 8,000 certificates from Agra University were found to be fake.
+17 teachers in Jharkhand were dismissed for using invalid certificates to secure their positions. The authorities took strict action Source : TOI
+against these individuals to maintain the integrity of the education system
+RESEARCH PAPER
+Shivam Gangwar, Anushka chaurasia, “Blockchain-based Authentication and Verification System for Academic Certificate using QR Code and
+Decentralized Applications.” International Journal of Computer Applications (0975- 8887) Volume 186- No.26, June 2024.
+Rane, Mukul & Singh, Shubham & Singh, Rohan & Amarsinh, Vidhate. (2020). Integrity and Authenticity of Academic Documents Using
+Blockchain Approach. ITM Web of Conferences. 32. 03038. 10.1051/itmconf/20203203038.
+Singh, Rohan. “Integrity and Authenticity of Academic Documents Using Blockchain Approach.” ITM Web of Conferences, EDP Sciences.
+Nearly 28% of job applicants submitted fake degrees, highlighting widespread academic fraud (2020 report).
+@SIH Idea submission- Template 6

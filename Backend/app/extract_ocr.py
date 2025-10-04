@@ -1,23 +1,22 @@
-import uuid 
 import os
+import uuid
 import pytesseract
-from paddleocr import PaddleOCR
 import pdfplumber
 import fitz  # PyMuPDF
 from pdf2image import convert_from_path
+from PIL import Image
 
 # -------------------------
 # Setup paths
 # -------------------------
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract"  # your Tesseract path
-ocr = PaddleOCR(use_angle_cls=True, lang='en')  # English
+pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"  # your Tesseract path
 
 UPLOAD_FOLDER = "uploads"
 EXTRACTED_FOLDER = "extracted_text"
 os.makedirs(EXTRACTED_FOLDER, exist_ok=True)
 
 # If Poppler is not in PATH, provide poppler_path
-POPPLER_PATH = r"C:\Users\shalinigm01\Downloads\Release-25.07.0-0\poppler-25.07.0\Library\bin"  # change to your poppler bin path
+POPPLER_PATH = r"C:\Program Files\poppler-25.07.0\Library\bin"  # change to your poppler bin path
 
 # -------------------------
 # Functions
@@ -42,38 +41,42 @@ def extract_text_from_pdf_with_ocr(file_path):
     text = ""
     pages = convert_from_path(file_path, poppler_path=POPPLER_PATH)
     for page in pages:
-        page_text1 = pytesseract.image_to_string(page)
-        result = ocr.ocr(page, cls=True)
-        page_text2 = "\n".join([line[1][0] for line in sum(result, [])])
-        text += page_text1 + "\n" + page_text2
+        page_text = pytesseract.image_to_string(page)
+        text += page_text + "\n"
     return text
 
 def extract_text_from_image(file_path):
-    text1 = pytesseract.image_to_string(file_path)
-    result = ocr.ocr(file_path, cls=True)
-    text2 = "\n".join([line[1][0] for line in sum(result, [])])
-    return text1 + "\n" + text2
+    """Run OCR on an image file"""
+    image = Image.open(file_path)
+    text = pytesseract.image_to_string(image)
+    return text
 
-def save_to_file(filename, text):
+def save_to_file(filename, text, file_path=None):
+    """Save extracted text to a txt file and return metadata"""
     base_name = os.path.splitext(filename)[0]
-    file_path = os.path.join(EXTRACTED_FOLDER, base_name + ".txt")
+    file_path_txt = os.path.join(EXTRACTED_FOLDER, base_name + ".txt")
     
     # Save the text to a file
-    with open(file_path, "w", encoding="utf-8") as f:
+    with open(file_path_txt, "w", encoding="utf-8") as f:
         f.write(text)
     
     # Generate a document ID (can use file name or UUID)
     document_id = base_name  # Option 1: use file name as ID
     # document_id = str(uuid.uuid4())  # Option 2: use unique UUID
     
-    # Return dictionary to pass to DB team
-    return {"document_id": document_id, "file_name": filename, "text": text}
+    # Return dictionary to pass to DB or pipeline
+    return {
+        "document_id": document_id,
+        "file_name": filename,
+        "file_path": file_path or os.path.join(UPLOAD_FOLDER, filename),
+        "text": text
+    }
 
 # -------------------------
-# Main
+# Main function
 # -------------------------
 def main():
-    all_text_data = []  # list to store all extracted text info
+    all_text_data = []
 
     for filename in os.listdir(UPLOAD_FOLDER):
         file_path = os.path.join(UPLOAD_FOLDER, filename)
@@ -88,8 +91,7 @@ def main():
             else:
                 print(f"Text found without OCR for {filename}")
 
-        elif filename.lower().endswith((".png", ".jpg", ".jpeg")):
-            # Always run OCR on images
+        elif filename.lower().endswith((".png", ".jpg", ".jpeg", ".bmp", ".tiff")):
             text = extract_text_from_image(file_path)
             print(f"OCR run for image {filename}")
 
@@ -97,17 +99,17 @@ def main():
             print(f"Skipped unsupported file: {filename}")
             continue
 
-        # Save text and generate document ID
-        text_data = save_to_file(filename, text)
-        all_text_data.append(text_data)  # collect for database insertion
+        # Save text and generate metadata
+        text_data = save_to_file(filename, text, file_path)
+        all_text_data.append(text_data)
         print(f"Saved extracted text for {filename}, document ID: {text_data['document_id']}")
 
-    # Optional: print all extracted text data for verification
+    # Optional: print all extracted text data
     print("\nAll extracted text data:")
     for data in all_text_data:
         print(f"Document ID: {data['document_id']}, File: {data['file_name']}")
 
+    return all_text_data
+
 if __name__ == "__main__":
     main()
-
-
