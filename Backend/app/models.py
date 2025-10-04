@@ -2,33 +2,20 @@ from sqlalchemy import Column, Integer, Text, String, Boolean, DateTime, Foreign
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
 
 class User(Base):
     __tablename__ = "users"
+
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(128), unique=True, index=True, nullable=False)
-    email = Column(String(256), unique=True, index=True, nullable=False)
-    hashed_password = Column(String(256), nullable=False)
-    is_active = Column(Boolean, default=True)
-    is_verified = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
 
-    otps = relationship("OTP", back_populates="user", cascade="all, delete-orphan")
-
-class OTP(Base):
-    __tablename__ = "otps"
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    code = Column(String(32), index=True)
-    expires_at = Column(DateTime)
-    used = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    user = relationship("User", back_populates="otps")
 
 class Document(Base):
     __tablename__ = "documents"
-
     id = Column(Integer, primary_key=True, index=True)
     original_filename = Column(String, nullable=False)
     storage_filename = Column(String, nullable=False)
@@ -40,7 +27,6 @@ class Document(Base):
 
 class Clause(Base):
     __tablename__ = "clauses"
-
     id = Column(Integer, primary_key=True)
     document_id = Column(Integer, ForeignKey("documents.id"), nullable=False)
     text = Column(Text, nullable=False)
@@ -58,6 +44,3 @@ class ClauseSuggestion(Base):
     applied = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     applied_at = Column(DateTime, nullable=True)
-
-
-    

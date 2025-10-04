@@ -1,17 +1,18 @@
 # main.py
-from fastapi import FastAPI, UploadFile, File, Header, HTTPException, Depends
+from fastapi import FastAPI, UploadFile, File, Header, HTTPException, Depends, APIRouter
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from pathlib import Path
 import uuid
 import os
 import json
+from app.database import Base, engine
+from app.routers.auth_routes import router as auth_router
 
 # --- Internal imports ---
 from app.database import engine, Base, get_db
 from app.models import Document
 from app.pipeline_runner import run_pipeline
-from app.routers.auth_routes import router as auth_router
-from app.auth import get_current_active_user
 from app.schemas import UserOut
 
 # --- Initialize App ---
@@ -20,8 +21,19 @@ app = FastAPI(title="AI Deal Checker + Auth System")
 # --- Create DB Tables ---
 Base.metadata.create_all(bind=engine)
 
-# --- Include Routers ---
+# --- Include Auth Router ---
 app.include_router(auth_router)
+
+
+# --- Serve static files ---
+STATIC_DIR = Path("app/static")
+STATIC_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+# --- Root endpoint ---
+@app.get("/")
+def root():
+    return {"message": "Welcome to AI Deal Checker API"}
 
 # --- Configurations ---
 UPLOAD_DIR = Path("uploads")
@@ -35,19 +47,12 @@ ALLOWED_MIMES = {
 MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", 20 * 1024 * 1024))  # 20MB default
 
 
-# --- Protected route example ---
-@app.get("/me", response_model=UserOut)
-def me(current_user=Depends(get_current_active_user)):
-    return current_user
-
-
 # --- File upload + pipeline endpoint ---
-@app.post("/upload_and_run_pipeline", response_model=None)
+@app.post("/upload_and_run_pipeline")
 async def upload_and_run_pipeline(
     file: UploadFile = File(...),
     x_user_id: int | None = Header(None),
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_active_user)  # 🔒 Ensure only logged-in users can upload
 ):
     # Validate MIME type
     if file.content_type not in ALLOWED_MIMES:
@@ -70,14 +75,13 @@ async def upload_and_run_pipeline(
         storage_filename=unique_name,
         storage_path=str(file_path.resolve()),
         content_type=file.content_type,
-        size=len(contents),
-        uploaded_by=x_user_id or current_user.id  # ✅ Prefer token user ID
+        size=len(contents)
     )
     db.add(doc)
     db.commit()
     db.refresh(doc)
 
-    # Run pipeline synchronously
+    # Run pipeline
     try:
         pipeline_result = run_pipeline(str(file_path))
         doc.pipeline_result = json.dumps(pipeline_result)
