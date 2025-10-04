@@ -1,11 +1,11 @@
 import os
-import json
 import fitz  # PyMuPDF
 from PIL import Image, ImageDraw
 import pytesseract
-import docx
 from rapidfuzz import fuzz  # For fuzzy matching
 
+# Local imports
+from app.extract_ocr import ocr_pdf, ocr_image, ocr_docx
 from app.nlp_clause_extraction import extract_clauses, save_clauses
 from app.hybrid_classification import classify_clause_hybrid
 from app.suggest import generate_suggestions
@@ -24,10 +24,10 @@ os.makedirs(HIGHLIGHTED_FOLDER, exist_ok=True)
 
 # ------------------------ Highlight Colors ------------------------
 COLOR_MAP_PDF = {
-    "grammatical": (1, 1, 0),
-    "financial": (0, 1, 0),
-    "legal": (0, 0, 1),
-    "unknown": (0.5, 0.5, 0.5)
+    "grammatical": (1, 1, 0),   # yellow
+    "financial": (0, 1, 0),     # green
+    "legal": (0, 0, 1),         # blue
+    "unknown": (0.5, 0.5, 0.5)  # gray
 }
 
 COLOR_MAP_IMAGE = {
@@ -37,43 +37,27 @@ COLOR_MAP_IMAGE = {
     "unknown": "gray"
 }
 
-# ------------------------ OCR Functions ------------------------
-def ocr_pdf(file_path):
-    text_pages = []
-    doc = fitz.open(file_path)
-    for page in doc:
-        pix = page.get_pixmap()
-        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-        text_pages.append(pytesseract.image_to_string(img))
-    return "\n".join(text_pages)
-
-def ocr_image(file_path):
-    image = Image.open(file_path)
-    return pytesseract.image_to_string(image)
-
-def ocr_docx(file_path):
-    doc = docx.Document(file_path)
-    full_text = [p.text for p in doc.paragraphs]
-    return "\n".join(full_text)
-
 # ------------------------ Highlighting Functions ------------------------
 def highlight_pdf(file_path, clauses, output_file):
+    """Highlight extracted clauses inside PDF"""
     doc = fitz.open(file_path)
     for page in doc:
         text = page.get_text()
         for clause in clauses:
             label = classify_clause_hybrid(clause)
-            # Fuzzy search for approximate matches
+            # Fuzzy match clause inside page text
             for inst in text.split("\n"):
                 if fuzz.partial_ratio(clause, inst) > 85:
                     areas = page.search_for(inst)
                     for area in areas:
                         annot = page.add_highlight_annot(area)
-                        annot.set_colors(stroke=COLOR_MAP_PDF.get(label, (0.5,0.5,0.5)))
+                        annot.set_colors(stroke=COLOR_MAP_PDF.get(label, (0.5, 0.5, 0.5)))
                         annot.update()
     doc.save(output_file)
 
+
 def highlight_image(file_path, clauses, output_file):
+    """Highlight extracted clauses inside image"""
     image = Image.open(file_path)
     data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
     draw = ImageDraw.Draw(image)
@@ -82,7 +66,6 @@ def highlight_image(file_path, clauses, output_file):
         label = classify_clause_hybrid(clause)
         words = clause.split()
         for i in range(len(data["text"]) - len(words) + 1):
-            # Fuzzy matching
             text_segment = " ".join(data["text"][i:i+len(words)])
             if fuzz.ratio(clause, text_segment) > 85:
                 x0 = min(data["left"][i:i+len(words)])
@@ -94,6 +77,7 @@ def highlight_image(file_path, clauses, output_file):
 
 # ------------------------ Main Pipeline ------------------------
 def run_pipeline(file_path: str):
+    """Main end-to-end pipeline runner"""
     ext = os.path.splitext(file_path)[1].lower()
 
     # 1️⃣ OCR
@@ -131,3 +115,22 @@ def run_pipeline(file_path: str):
         })
 
     return results
+
+
+# ------------------------ Runner ------------------------
+if __name__ == "__main__":
+    sample_file = "uploads/sample.pdf"  # 👈 Change this to test your own file
+    output = run_pipeline(sample_file)
+
+    print("\n📌 Pipeline Results:")
+    for r in output:
+        print(json.dumps(r, indent=2, ensure_ascii=False))
+
+    # Optional: generate highlighted version
+    highlight_out = os.path.join(HIGHLIGHTED_FOLDER, f"highlighted_{os.path.basename(sample_file)}")
+    if sample_file.endswith(".pdf"):
+        highlight_pdf(sample_file, [r["clause"] for r in output], highlight_out)
+    elif sample_file.lower().endswith((".jpg", ".jpeg", ".png", ".bmp", ".tiff")):
+        highlight_image(sample_file, [r["clause"] for r in output], highlight_out)
+    print(f"\n✅ Highlighted file saved at: {highlight_out}")
+
